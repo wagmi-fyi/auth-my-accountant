@@ -1,36 +1,178 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auth My Accountant
 
-## Getting Started
+Session broker for financial account authentication flows. Firm agents create auth channels via API, clients connect bank accounts through provider SDKs (Stripe Financial Connections), and firms retrieve linked account IDs.
 
-First, run the development server:
+## Architecture
+
+- **Next.js 15+ (App Router)** on Vercel
+- **Neon Postgres** via Drizzle ORM (neon-http driver)
+- **Modular provider system** — Stripe FC first, extensible to Plaid etc.
+- **Transient credential model** — provider API keys used once during session creation, never stored
+
+## Setup
 
 ```bash
+# Clone and install
+git clone <repo-url>
+cd authmyaccountant
+npm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with your DATABASE_URL, ADMIN_API_KEY, NEXT_PUBLIC_APP_URL
+
+# Push schema to database (local dev)
+npm run db:push
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres connection string |
+| `ADMIN_API_KEY` | Platform admin key for firm provisioning |
+| `NEXT_PUBLIC_APP_URL` | Base URL for channel links (e.g., `https://authmyaccountant.com`) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Reference
 
-## Learn More
+### POST /api/firms
 
-To learn more about Next.js, take a look at the following resources:
+Create a new firm. Requires admin API key.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+curl -X POST http://localhost:3000/api/firms \
+  -H "Authorization: Bearer {ADMIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme Accounting"}'
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "name": "Acme Accounting",
+  "api_key": "acp_..."
+}
+```
 
-## Deploy on Vercel
+> The `api_key` is returned only once. Store it securely.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### POST /api/channels
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Create an auth channel. Requires firm API key.
+
+```bash
+curl -X POST http://localhost:3000/api/channels \
+  -H "Authorization: Bearer {firm_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "stripe_fc",
+    "provider_config": {
+      "permissions": ["transactions", "balances"]
+    },
+    "credentials": {
+      "secret_key": "sk_test_...",
+      "publishable_key": "pk_test_..."
+    },
+    "consent": {
+      "title": "Connect Your Bank Account",
+      "body": "We need access to verify your transactions.",
+      "firm_name": "Acme Accounting"
+    },
+    "client_ref": "client-123",
+    "expires_in_hours": 24
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "token": "...",
+  "url": "https://authmyaccountant.com/c/{token}",
+  "status": "pending",
+  "expires_at": "2026-02-27T..."
+}
+```
+
+### GET /api/channels/:id
+
+Retrieve channel status and results. Requires firm API key.
+
+```bash
+curl http://localhost:3000/api/channels/{id} \
+  -H "Authorization: Bearer {firm_api_key}"
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid",
+  "token": "...",
+  "provider": "stripe_fc",
+  "status": "completed",
+  "client_ref": "client-123",
+  "consent": { "..." },
+  "expires_at": "...",
+  "created_at": "...",
+  "accounts": [
+    {
+      "provider_account_id": "fca_...",
+      "account_metadata": {
+        "institution_name": "Chase",
+        "last4": "1234",
+        "category": "checking"
+      }
+    }
+  ]
+}
+```
+
+### POST /api/channels/:id/results
+
+Submit auth results (called from client browser, not firm agents).
+
+- Requires `X-Channel-Token` header
+- Validates `Origin` header matches `NEXT_PUBLIC_APP_URL`
+
+## Adding a New Provider
+
+1. Create `lib/providers/{name}.ts` implementing the `Provider` interface:
+   - `createSession(config, credentials)` — create provider session with transient credentials
+   - `validateResults(raw)` — normalize provider response into `ProviderResultItem[]`
+
+2. Register in `lib/providers/index.ts`:
+   ```typescript
+   import { myProvider } from "./my-provider";
+   // Add to providers map:
+   my_provider: myProvider,
+   ```
+
+3. Add provider name to `createChannelSchema` enum in `lib/validation.ts`
+
+4. Add provider-specific client component handling in `AuthFlow.tsx`
+
+## Deployment
+
+Deploy to Vercel with Neon Postgres integration:
+
+1. Connect repo to Vercel
+2. Add Neon Postgres via Vercel Marketplace (auto-injects `DATABASE_URL`)
+3. Set `ADMIN_API_KEY` and `NEXT_PUBLIC_APP_URL` in Vercel env vars
+4. Build command runs migrations automatically: `npx drizzle-kit migrate && next build`
+
+## Database Migrations
+
+```bash
+# Generate migration from schema changes
+npm run db:generate
+
+# Apply to local dev (direct push, no migration files)
+npm run db:push
+
+# Apply migrations (production)
+npm run db:migrate
+```
