@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { channels, channelResults } from "@/lib/schema";
 import { submitResultsSchema } from "@/lib/validation";
 import { getProvider } from "@/lib/providers";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
@@ -26,6 +27,15 @@ export async function POST(
       })
     );
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Rate limit: 5 requests per minute per channel
+  const rateLimit = await checkRateLimit(id, "POST /api/channels/:id/results", 5, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } }
+    );
   }
 
   // Channel token auth

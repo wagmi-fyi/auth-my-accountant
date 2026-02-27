@@ -5,12 +5,14 @@ import {
   timestamp,
   jsonb,
   unique,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const firms = pgTable("firms", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   apiKeyHash: text("api_key_hash").notNull(),
+  stripeAccountId: text("stripe_account_id"),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -51,6 +53,24 @@ export const channelResults = pgTable(
     unique("channel_results_channel_account_unique").on(
       table.channelId,
       table.providerAccountId
+    ),
+  ]
+);
+
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    identifier: text("identifier").notNull(),
+    endpoint: text("endpoint").notNull(),
+    windowStart: timestamp("window_start").notNull(),
+    requestCount: integer("request_count").notNull().default(1),
+  },
+  (table) => [
+    unique("rate_limits_identifier_endpoint_window").on(
+      table.identifier,
+      table.endpoint,
+      table.windowStart
     ),
   ]
 );

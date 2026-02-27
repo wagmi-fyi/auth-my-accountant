@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { validateFirmApiKey, generateChannelToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { channels } from "@/lib/schema";
+import { channels, firms } from "@/lib/schema";
 import { createChannelSchema } from "@/lib/validation";
 import { getProvider } from "@/lib/providers";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const start = Date.now();
@@ -18,6 +20,15 @@ export async function POST(request: Request) {
       })
     );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 30 requests per minute per firm
+  const rateLimit = await checkRateLimit(firm.id, "POST /api/channels", 30, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } }
+    );
   }
 
   let body: unknown;
@@ -45,6 +56,38 @@ export async function POST(request: Request) {
       { error: `Unknown provider: ${data.provider}` },
       { status: 400 }
     );
+  }
+
+  // Stripe account pinning: verify credentials match registered account
+  const [firmRecord] = await db
+    .select({ stripeAccountId: firms.stripeAccountId })
+    .from(firms)
+    .where(eq(firms.id, firm.id));
+
+  if (firmRecord?.stripeAccountId) {
+    try {
+      const accountId = await provider.verifyAccount(data.credentials);
+      if (accountId !== firmRecord.stripeAccountId) {
+        return NextResponse.json(
+          { error: "Stripe account does not match registered account" },
+          { status: 403 }
+        );
+      }
+    } catch {
+      console.error(
+        JSON.stringify({
+          endpoint: "POST /api/channels",
+          firm_id: firm.id,
+          error: "Account verification failed",
+          status: 403,
+          duration: Date.now() - start,
+        })
+      );
+      return NextResponse.json(
+        { error: "Failed to verify Stripe account ownership" },
+        { status: 403 }
+      );
+    }
   }
 
   let sessionResult;

@@ -28,4 +28,7 @@ export interface Provider {
     credentials: Record<string, unknown>
   ): Promise<ProviderSessionResult>;
   validateResults(raw: unknown): ProviderResultItem[];
+  verifyAccount(
+    credentials: Record<string, unknown>
+  ): Promise<string>;
 }

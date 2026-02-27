@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { validateFirmApiKey } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { channels, channelResults } from "@/lib/schema";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
@@ -14,6 +15,15 @@ export async function GET(
   const firm = await validateFirmApiKey(request);
   if (!firm) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 120 requests per minute per firm
+  const rateLimit = await checkRateLimit(firm.id, "GET /api/channels/:id", 120, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } }
+    );
   }
 
   const [channel] = await db

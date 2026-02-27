@@ -68,6 +68,15 @@ export const stripeFcProvider: Provider = {
     };
   },
 
+  async verifyAccount(
+    credentials: Record<string, unknown>
+  ): Promise<string> {
+    const secretKey = credentials.secret_key as string;
+    const stripe = new Stripe(secretKey);
+    const account = await stripe.accounts.retrieve();
+    return account.id;
+  },
+
   validateResults(raw: unknown): ProviderResultItem[] {
     if (!Array.isArray(raw)) {
       throw new Error("Expected array of account objects");

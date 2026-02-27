@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createFirmSchema = z.object({
   name: z.string().min(1).max(200),
+  stripe_account_id: z.string().optional(),
 });
 
 export const createChannelSchema = z.object({
