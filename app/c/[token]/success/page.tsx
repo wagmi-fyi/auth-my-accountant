@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { channels, channelResults } from "@/lib/schema";
 
@@ -37,9 +38,15 @@ export default async function SuccessPage({
     .where(eq(channelResults.channelId, channel.id));
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full text-center">
-        <div className="text-5xl mb-4">&#x2705;</div>
+        <Image
+          src="/icon.svg"
+          alt=""
+          width={48}
+          height={48}
+          className="mx-auto mb-4"
+        />
         <h1 className="text-2xl font-semibold text-gray-900 mb-2">
           Account Connected
         </h1>
@@ -66,6 +73,9 @@ export default async function SuccessPage({
             })}
           </div>
         )}
+      </div>
+      <div className="mt-12 opacity-40">
+        <Image src="/icon.svg" alt="" width={24} height={24} />
       </div>
     </div>
   );
