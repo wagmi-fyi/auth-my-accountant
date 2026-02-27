@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Auth My Accountant",
   description: "Securely connect your financial accounts",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
