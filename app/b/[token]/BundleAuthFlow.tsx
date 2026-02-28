@@ -56,6 +56,11 @@ export default function BundleAuthFlow({
   const [allConnectedAccounts, setAllConnectedAccounts] =
     useState<AccountResult[]>(priorAccounts);
 
+  // Track completed session count (institutions, not accounts)
+  const [sessionsCompletedCount, setSessionsCompletedCount] = useState(
+    sessions.filter((s) => s.status === "completed").length
+  );
+
   // Cache Stripe instance — same publishable key for all sessions
   const stripeRef = useRef<Promise<Stripe | null> | null>(null);
 
@@ -168,6 +173,7 @@ export default function BundleAuthFlow({
       }));
 
       setAllConnectedAccounts((prev) => [...prev, ...newAccounts]);
+      setSessionsCompletedCount((prev) => prev + 1);
 
       if (submitData.sessions_remaining === 0) {
         // Server auto-completed the bundle
@@ -318,16 +324,13 @@ export default function BundleAuthFlow({
 
   // Idle / Connecting / Submitting
   const isLoading = flowStatus === "connecting" || flowStatus === "submitting";
-  const isFirstConnection = allConnectedAccounts.length === 0;
-  const completedCount = sessions.filter(
-    (s) => s.status === "completed"
-  ).length + allConnectedAccounts.length - priorAccounts.length;
+  const isFirstConnection = sessionsCompletedCount === 0;
 
   return (
     <div>
       {!isFirstConnection && (
         <p className="text-sm text-gray-500 text-center mb-4">
-          Institution {completedCount + 1} of {sessions.length}
+          Institution {sessionsCompletedCount + 1} of {sessions.length}
         </p>
       )}
       <button
