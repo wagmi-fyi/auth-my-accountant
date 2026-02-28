@@ -138,6 +138,117 @@ Submit auth results (called from client browser, not firm agents).
 - Requires `X-Channel-Token` header
 - Validates `Origin` header matches `NEXT_PUBLIC_APP_URL`
 
+## Bundles (Multi-Institution)
+
+Bundles allow a single link to connect multiple bank institutions. The firm agent creates a bundle with N pre-created Stripe FC sessions (default 5), sends one URL to the client, and the client connects institutions sequentially.
+
+### POST /api/bundles
+
+Create a bundle with multiple auth sessions. Requires firm API key.
+
+```bash
+curl -X POST http://localhost:3000/api/bundles \
+  -H "Authorization: Bearer {firm_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "stripe_fc",
+    "provider_config": {
+      "permissions": ["transactions", "balances"]
+    },
+    "credentials": {
+      "secret_key": "sk_test_...",
+      "publishable_key": "pk_test_..."
+    },
+    "consent": {
+      "title": "Connect Your Bank Accounts",
+      "body": "Please connect all bank accounts used for your business.",
+      "firm_name": "Acme Accounting"
+    },
+    "client_ref": "client-123",
+    "max_sessions": 5,
+    "expires_in_hours": 72
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "token": "...",
+  "url": "https://authmyaccountant.com/b/{token}",
+  "status": "pending",
+  "max_sessions": 5,
+  "expires_at": "2026-03-02T..."
+}
+```
+
+Default expiry is **72 hours** (max 168). Default max_sessions is **5** (max 20). All sessions share one Stripe customer. Credentials are used during creation and never stored.
+
+### GET /api/bundles/:id
+
+Retrieve bundle status and all connected accounts. Requires firm API key.
+
+```bash
+curl http://localhost:3000/api/bundles/{id} \
+  -H "Authorization: Bearer {firm_api_key}"
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid",
+  "token": "...",
+  "provider": "stripe_fc",
+  "status": "active",
+  "client_ref": "client-123",
+  "consent": { "..." },
+  "max_sessions": 5,
+  "sessions_completed": 2,
+  "sessions_total": 5,
+  "expires_at": "...",
+  "created_at": "...",
+  "accounts": [
+    {
+      "provider_account_id": "fca_...",
+      "account_metadata": {
+        "institution_name": "Chase",
+        "last4": "1234",
+        "category": "checking"
+      },
+      "session_index": 0
+    }
+  ]
+}
+```
+
+Accounts are **always** returned, even for expired bundles that had completed sessions.
+
+### Bundle Lifecycle
+
+`pending` → `active` → `completed`
+
+- **pending**: Bundle created, no sessions used yet
+- **active**: Client has connected at least one institution, may still be connecting more
+- **completed**: Client clicked "I'm Done", all sessions used, or server auto-completed
+- **expired**: Computed at read time when `expires_at` has passed (accounts still accessible)
+
+### POST /api/bundles/:id/results (client-facing)
+
+Submit results for a specific session. Called from client browser.
+
+- Requires `X-Bundle-Token` header (NOT `X-Channel-Token`)
+- Validates `Origin` header
+- Body includes `session_index` identifying which session was completed
+- Server auto-completes the bundle when all sessions are done
+
+### POST /api/bundles/:id/complete (client-facing)
+
+Mark bundle as completed. Called when client clicks "I'm Done" with unused sessions.
+
+- Requires `X-Bundle-Token` header
+- Idempotent — safe to call multiple times
+- Only valid when bundle status is `active`
+
 ## Adding a New Provider
 
 1. Create `lib/providers/{name}.ts` implementing the `Provider` interface:

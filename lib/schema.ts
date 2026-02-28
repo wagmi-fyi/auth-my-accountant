@@ -57,6 +57,24 @@ export const channelResults = pgTable(
   ]
 );
 
+export const bundles = pgTable("bundles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  firmId: uuid("firm_id")
+    .references(() => firms.id)
+    .notNull(),
+  token: text("token").notNull().unique(),
+  provider: text("provider").notNull(),
+  providerPublishableKey: text("provider_publishable_key"),
+  providerConfig: jsonb("provider_config"),
+  consent: jsonb("consent").notNull(),
+  clientRef: text("client_ref"),
+  maxSessions: integer("max_sessions").notNull().default(5),
+  sessions: jsonb("sessions").notNull(),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const rateLimits = pgTable(
   "rate_limits",
   {
