@@ -268,22 +268,29 @@ Mark bundle as completed. Called when client clicks "I'm Done" with unused sessi
 
 ## Deployment
 
-Deploy to Vercel with Neon Postgres integration:
+Deployed on Vercel with Neon Postgres integration.
 
-1. Connect repo to Vercel
+**Production URL:** `https://auth-my-accountant.vercel.app`
+
+### Setup
+
+1. Link repo to Vercel: `vercel link`
 2. Add Neon Postgres via Vercel Marketplace (auto-injects `DATABASE_URL`)
-3. Set `ADMIN_API_KEY` and `NEXT_PUBLIC_APP_URL` in Vercel env vars
-4. Build command runs migrations automatically: `npx drizzle-kit migrate && next build`
+3. Set env vars: `ADMIN_API_KEY`, `NEXT_PUBLIC_APP_URL`
+4. Push schema to database: `npm run db:push`
+5. Deploy: `vercel --prod`
 
-## Database Migrations
+### Database Schema Changes
+
+Schema changes are pushed directly — no migration files in the build pipeline.
 
 ```bash
-# Generate migration from schema changes
-npm run db:generate
-
-# Apply to local dev (direct push, no migration files)
+# Push schema changes to database (local dev or production)
 npm run db:push
 
-# Apply migrations (production)
-npm run db:migrate
+# Generate migration files (for version control/audit)
+npm run db:generate
+
+# Start dev server
+npm run dev
 ```
