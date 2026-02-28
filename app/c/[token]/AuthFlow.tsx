@@ -56,7 +56,7 @@ export default function AuthFlow({
 
         if (isStale) {
           setError(
-            "We couldn't connect to your bank. This may happen if the link has been open for a while. Please contact your accountant for a new link."
+            "We couldn't connect to your financial institution. This may happen if the link has been open for a while. Please contact your accountant for a new link."
           );
           setRetryable(false);
         } else {
@@ -195,7 +195,7 @@ export default function AuthFlow({
           {status === "submitting" ? "Saving..." : "Connecting..."}
         </span>
       ) : (
-        "Connect Your Bank Account"
+        "Connect Your Financial Account"
       )}
     </button>
   );

@@ -93,7 +93,7 @@ export default function BundleAuthFlow({
 
         if (isStale) {
           setError(
-            "We couldn't connect to your bank. This may happen if the link has been open for a while. Please contact your accountant for a new link."
+            "We couldn't connect to your financial institution. This may happen if the link has been open for a while. Please contact your accountant for a new link."
           );
           setRetryable(false);
         } else {
@@ -257,7 +257,7 @@ export default function BundleAuthFlow({
       <div className="text-center">
         <div className="text-5xl mb-4">&#x2705;</div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Bank Connected
+          Account Connected
         </h2>
         <p className="text-gray-600 mb-6">
           {allConnectedAccounts.length}{" "}
@@ -290,7 +290,7 @@ export default function BundleAuthFlow({
               onClick={handleConnectAnother}
               className="w-full bg-gray-900 text-white font-medium py-3 px-6 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
             >
-              Connect Another Bank Account
+              Connect Another Financial Account
             </button>
           )}
           <button
@@ -363,9 +363,9 @@ export default function BundleAuthFlow({
             {flowStatus === "submitting" ? "Saving..." : "Connecting..."}
           </span>
         ) : isFirstConnection ? (
-          "Connect Your Bank Account"
+          "Connect Your Financial Account"
         ) : (
-          "Connect Another Bank Account"
+          "Connect Another Financial Account"
         )}
       </button>
     </div>
