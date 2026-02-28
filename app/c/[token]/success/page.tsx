@@ -51,7 +51,7 @@ export default async function SuccessPage({
           Account Connected
         </h1>
         <p className="text-gray-600 mb-6">
-          Your bank account has been successfully connected. You can close this
+          Your financial account has been successfully connected. You can close this
           page.
         </p>
         {results.length > 0 && (
