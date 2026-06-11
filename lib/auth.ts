@@ -39,7 +39,9 @@ export function validateAdminKey(request: Request): boolean {
   if (!authHeader?.startsWith("Bearer ")) return false;
 
   const key = authHeader.slice(7);
-  const adminKey = process.env.ADMIN_API_KEY;
+  // trim(): env values set via dashboard/CLI have shipped with trailing newlines,
+  // which make header-based comparison unsatisfiable (2026-06-10 incident)
+  const adminKey = process.env.ADMIN_API_KEY?.trim();
   if (!adminKey) return false;
 
   const keyBuffer = Buffer.from(key);
@@ -55,7 +57,7 @@ export function generateChannelToken(): string {
 
 export function validateOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (!origin || !appUrl) return false;
   return origin === appUrl;
 }

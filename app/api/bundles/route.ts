@@ -194,7 +194,7 @@ export async function POST(request: Request) {
   const expiresAt = new Date(
     Date.now() + data.expires_in_hours * 60 * 60 * 1000
   );
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   const [bundle] = await db
     .insert(bundles)
