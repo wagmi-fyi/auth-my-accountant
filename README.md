@@ -2,6 +2,8 @@
 
 Session broker for financial account authentication flows. Firm agents create auth channels via API, clients connect bank accounts through provider SDKs (Stripe Financial Connections), and firms retrieve linked account IDs.
 
+**Docs:** [`docs/security.md`](docs/security.md) — security posture (client- and firm-facing). [`docs/firm-onboarding.md`](docs/firm-onboarding.md) — onboarding a new accounting firm (prerequisites, key scopes, first bundle). [`RUNBOOK.md`](RUNBOOK.md) — platform operations (env management, deploys, firm lifecycle, diagnostics).
+
 ## Architecture
 
 - **Next.js 15+ (App Router)** on Vercel
@@ -124,7 +126,8 @@ curl http://localhost:3000/api/channels/{id} \
       "account_metadata": {
         "institution_name": "Chase",
         "last4": "1234",
-        "category": "checking"
+        "category": "cash",
+        "subcategory": "checking"
       }
     }
   ]
@@ -213,7 +216,8 @@ curl http://localhost:3000/api/bundles/{id} \
       "account_metadata": {
         "institution_name": "Chase",
         "last4": "1234",
-        "category": "checking"
+        "category": "cash",
+        "subcategory": "checking"
       },
       "session_index": 0
     }
@@ -248,6 +252,19 @@ Mark bundle as completed. Called when client clicks "I'm Done" with unused sessi
 - Requires `X-Bundle-Token` header
 - Idempotent — safe to call multiple times
 - Only valid when bundle status is `active`
+
+## Rate Limits
+
+Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on breach):
+
+| Endpoint | Limit | Scope |
+| --- | --- | --- |
+| POST /api/firms | 10/min | admin |
+| POST /api/channels | 30/min | firm |
+| POST /api/bundles | 10/min | firm |
+| POST /api/channels/:id/results | 5/min | channel |
+| POST /api/bundles/:id/results | 10/min | bundle |
+| GET /api/channels/:id, /api/bundles/:id | 120/min | firm |
 
 ## Adding a New Provider
 
