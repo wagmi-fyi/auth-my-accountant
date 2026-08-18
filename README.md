@@ -2,7 +2,7 @@
 
 Session broker for financial account authentication flows. Firm agents create auth channels via API, clients connect bank accounts through provider SDKs (Stripe Financial Connections), and firms retrieve linked account IDs.
 
-**Docs:** [`docs/security.md`](docs/security.md) — security posture (client- and firm-facing). [`docs/firm-onboarding.md`](docs/firm-onboarding.md) — onboarding a new accounting firm (prerequisites, key scopes, first bundle).
+**Docs:** [`docs/security.md`](docs/security.md) — security posture (client- and firm-facing).
 
 ## Architecture
 
