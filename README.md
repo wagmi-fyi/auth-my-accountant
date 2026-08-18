@@ -2,7 +2,7 @@
 
 Session broker for financial account authentication flows. Firm agents create auth channels via API, clients connect bank accounts through provider SDKs (Stripe Financial Connections), and firms retrieve linked account IDs.
 
-**Docs:** [`docs/security.md`](docs/security.md) — security posture (client- and firm-facing). [`docs/firm-onboarding.md`](docs/firm-onboarding.md) — onboarding a new accounting firm (prerequisites, key scopes, first bundle). [`RUNBOOK.md`](RUNBOOK.md) — platform operations (env management, deploys, firm lifecycle, diagnostics).
+**Docs:** [`docs/security.md`](docs/security.md) — security posture (client- and firm-facing).
 
 ## Architecture
 
@@ -285,9 +285,10 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
 
 ## Deployment
 
-Deployed on Vercel with Neon Postgres integration.
+Runs on Vercel with Neon Postgres integration.
 
-**Production URL:** `https://auth-my-accountant.vercel.app`
+WAGMI runs one instance of this code at `https://auth-my-accountant.vercel.app`.
+The steps below deploy your own.
 
 ### Setup
 
