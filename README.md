@@ -285,9 +285,10 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
 
 ## Deployment
 
-Deployed on Vercel with Neon Postgres integration.
+Runs on Vercel with Neon Postgres integration.
 
-**Production URL:** `https://auth-my-accountant.vercel.app`
+WAGMI runs one instance of this code at `https://auth-my-accountant.vercel.app`.
+The steps below deploy your own.
 
 ### Setup
 
