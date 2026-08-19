@@ -2,6 +2,8 @@
 
 *Last reviewed: 2026-06 · Audience: firms evaluating the platform and the clients they ask to connect accounts.*
 
+*Scope: this page describes the hosted instance of Auth My Accountant that WAGMI FYI LLC operates, and its provider certifications, software versions, and controls attest to that deployment only. Anyone running this open-source code on their own infrastructure needs their own security page.*
+
 Auth My Accountant (AMA) is the secure link your accounting firm sends you to connect a financial account. This page explains, in plain terms, what the service does with your information — and what it deliberately never touches.
 
 ## The one thing that matters most
