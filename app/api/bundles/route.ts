@@ -68,14 +68,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const refusal = await checkProviderBinding(
+  const binding = await checkProviderBinding(
     firm.id,
     provider,
     data.credentials,
     "POST /api/bundles",
     start
   );
-  if (refusal) return refusal;
+  if (binding.refusal) return binding.refusal;
 
   // Create session 0 first (creates Stripe customer if needed)
   let firstSessionResult;
@@ -181,6 +181,7 @@ export async function POST(request: Request) {
       provider: data.provider,
       providerPublishableKey: firstSessionResult.publishable_key ?? null,
       providerConfig: data.provider_config,
+      providerVerifiedName: binding.verifiedName,
       consent: data.consent,
       clientRef: data.client_ref ?? null,
       maxSessions: data.max_sessions,

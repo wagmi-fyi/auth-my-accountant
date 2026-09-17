@@ -20,8 +20,6 @@ interface StripeAccount {
 export const stripeFcProvider: Provider = {
   name: "stripe_fc",
   displayName: "Stripe",
-  identifyHint:
-    "A restricted key needs Accounts: Read, beside Financial Connections: Read and Write and Customers: Write.",
 
   async createSession(
     config: ProviderSessionRequest,
@@ -74,10 +72,20 @@ export const stripeFcProvider: Provider = {
 
   async identifyAccount(
     credentials: Record<string, unknown>
-  ): Promise<ProviderAccountIdentity> {
+  ): Promise<ProviderAccountIdentity | null> {
     const secretKey = credentials.secret_key as string;
     const stripe = new Stripe(secretKey);
-    const account = await stripe.accounts.retrieve();
+    let account;
+    try {
+      account = await stripe.accounts.retrieve();
+    } catch (err) {
+      // A restricted key without Accounts: Read cannot see its own account.
+      // Links still work for it; the firm is just not bound.
+      if ((err as { code?: string }).code === "more_permissions_required") {
+        return null;
+      }
+      throw err;
+    }
     // A test account's name is whatever was typed in, so only a live key
     // reports a verified name.
     const live = /^(sk|rk)_live_/.test(secretKey);

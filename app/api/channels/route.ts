@@ -58,14 +58,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const refusal = await checkProviderBinding(
+  const binding = await checkProviderBinding(
     firm.id,
     provider,
     data.credentials,
     "POST /api/channels",
     start
   );
-  if (refusal) return refusal;
+  if (binding.refusal) return binding.refusal;
 
   let sessionResult;
   try {
@@ -108,6 +108,7 @@ export async function POST(request: Request) {
       providerClientSecret: sessionResult.client_secret,
       providerPublishableKey: sessionResult.publishable_key ?? null,
       providerConfig: data.provider_config,
+      providerVerifiedName: binding.verifiedName,
       consent: data.consent,
       clientRef: data.client_ref ?? null,
       expiresAt,

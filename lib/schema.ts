@@ -56,6 +56,8 @@ export const channels = pgTable(
     providerClientSecret: text("provider_client_secret").notNull(),
     providerPublishableKey: text("provider_publishable_key"),
     providerConfig: jsonb("provider_config"),
+    // Set only when this link's own credentials named a bound account.
+    providerVerifiedName: text("provider_verified_name"),
     consent: jsonb("consent").notNull(),
     clientRef: text("client_ref"),
     status: text("status").notNull().default("pending"),
@@ -92,6 +94,8 @@ export const bundles = pgTable("bundles", {
   provider: text("provider").notNull(),
   providerPublishableKey: text("provider_publishable_key"),
   providerConfig: jsonb("provider_config"),
+  // Set only when this link's own credentials named a bound account.
+  providerVerifiedName: text("provider_verified_name"),
   consent: jsonb("consent").notNull(),
   clientRef: text("client_ref"),
   maxSessions: integer("max_sessions").notNull().default(5),

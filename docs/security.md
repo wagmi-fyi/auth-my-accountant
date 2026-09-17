@@ -23,7 +23,7 @@ What AMA receives back is **not your login** — it's a tokenized reference to t
 | Tokenized account reference (`fca_…`) | Yes | An opaque ID; not your account number. |
 | Display metadata | Yes | Institution name, last 4 digits, account type/nickname. |
 | Your firm's Stripe secret key | **Never stored, never logged** | Used once, in-memory, to create the connection session, then discarded. |
-| Your firm's Stripe account ID and registered company name | Yes | Recorded from your firm's first link. Every later link has to use the same account, and the link page shows you the company name. |
+| Your firm's Stripe account ID and registered company name | Yes, when your firm's key lets us see the account | Recorded from your firm's first link. A later link through another account is refused, and the link page shows you the company name. |
 
 Everything AMA does store lives in a database encrypted at rest with AES-256 and reachable only over encrypted connections (see Infrastructure below).
 
@@ -68,7 +68,7 @@ What the AMA application itself enforces:
 
 - **Transient credentials.** Your firm's Stripe secret key is used once to create a session and is never persisted or written to logs.
 - **No credential storage.** Firm API keys are stored only as **SHA-256 hashes**; a database read never yields a usable key. Secret comparisons are **timing-safe**.
-- **One provider account per firm.** A firm's first link records which Stripe account it used. A link request through any other account is refused.
+- **One provider account per firm.** When a firm's Stripe key lets the service see which account it belongs to, the firm's first link records that account, and a link request through any other account is refused.
 - **Open sign-up with limits.** A firm gets its key by signing up, with no approval step. Sign-up is limited per network per hour and per day in total, and the platform operator can suspend a firm at once.
 - **Strict access scoping.** Every firm can only read its own connections — requests are filtered by firm identity at the database layer; identifiers are unguessable UUIDs with high-entropy tokens.
 - **Browser-submission protections.** Client-facing submissions are origin-validated and carry a timing-safe single-use token; connection links expire and cannot be reused after completion or expiry.

@@ -1,5 +1,5 @@
 {
-  "id": "56d962c2-35bb-4542-a62c-73a9d878cc5d",
+  "id": "0432e15e-e39c-4a90-84ff-a9a7bbc9789f",
   "prevId": "72c5865a-bfed-4030-b937-ce74521666df",
   "version": "7",
   "dialect": "postgresql",
@@ -42,6 +42,12 @@
         "provider_config": {
           "name": "provider_config",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_verified_name": {
+          "name": "provider_verified_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -239,6 +245,12 @@
         "provider_config": {
           "name": "provider_config",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_verified_name": {
+          "name": "provider_verified_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

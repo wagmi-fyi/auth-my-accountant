@@ -127,6 +127,15 @@ async function main() {
   const [bound] = await sql`SELECT verified_name FROM firm_provider_bindings WHERE firm_id = ${madeFirms[0]}`;
   check("a later link with no name keeps the verified name", bound?.verified_name === "Acme Books LLC");
 
+  // A key that cannot say which account it is: the link is made, the
+  // binding is left alone, and its page shows no verified name.
+  const cannotSay = await call("POST", "/api/bundles", { key: key1, body: linkBody("unknown") });
+  check("a bound firm's key that cannot say still makes a link", cannotSay.status === 201, `got ${cannotSay.status}`);
+  const [still] = await sql`SELECT account_ref, verified_name FROM firm_provider_bindings WHERE firm_id = ${madeFirms[0]}`;
+  check("and leaves the binding as it was", still?.account_ref === "acct_A" && still?.verified_name === "Acme Books LLC");
+  const cannotSayChannel = await call("POST", "/api/channels", { key: key1, body: linkBody("unknown") });
+  check("the channel route makes that link too", cannotSayChannel.status === 201);
+
   const unknownProvider = await call("POST", "/api/bundles", { key: key1, body: { ...linkBody("acct_A"), provider: "stripe_fcx" } });
   check("an unknown provider gets 400", unknownProvider.status === 400);
 
@@ -162,6 +171,10 @@ async function main() {
   // 5. The client page line.
   const pageBound = await call("GET", `/b/${bundleA.json?.token}`);
   check("the bound firm's page shows the line", pageBound.text.includes("Their Test account is registered to Acme Books LLC."));
+  const pageCannotSay = await call("GET", `/b/${cannotSay.json?.token}`);
+  check("the page of a link whose key could not say has no line", pageCannotSay.status === 200 && !pageCannotSay.text.includes("account is registered to"));
+  const channelCannotSay = await call("GET", `/c/${cannotSayChannel.json?.token}`);
+  check("the same holds on the channel page", channelCannotSay.status === 200 && !channelCannotSay.text.includes("account is registered to"));
   const pageUnbound = await call("GET", `/b/${unbound.json?.token}`);
   check("the unbound firm's page has no line", pageUnbound.status === 200 && !pageUnbound.text.includes("account is registered to"));
   const channelPage = await call("GET", `/c/${channelA.json?.token}`);

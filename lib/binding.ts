@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { firmProviderBindings } from "./schema";
 import { getProvider } from "./providers";
@@ -11,16 +11,26 @@ function scrub(text: string): string {
   return text.replace(/\b[a-z]{2,4}_(live|test)_\S*/gi, "<key>");
 }
 
+export type BindingOutcome =
+  | { refusal: NextResponse }
+  // The name to show on this link's page: set only when the link's own
+  // credentials named the bound account and the provider verified a name.
+  | { refusal: null; verifiedName: string | null };
+
 // Checks the credentials on a link request against the account the firm is
-// bound to for this provider, and binds the firm on its first link. Returns a
-// refusal to send, or null to go on.
+// bound to for this provider, and binds the firm on its first link.
+//
+// Credentials that cannot name their account leave any binding alone and
+// the link goes through, bound firm or not, so a key without the permission
+// to look never stops a working firm. Such a link shows no verified name,
+// because nothing ties it to the bound account.
 export async function checkProviderBinding(
   firmId: string,
   provider: Provider,
   credentials: Record<string, unknown>,
   endpoint: string,
   start: number
-): Promise<NextResponse | null> {
+): Promise<BindingOutcome> {
   let identity;
   try {
     identity = await provider.identifyAccount(credentials);
@@ -35,19 +45,18 @@ export async function checkProviderBinding(
         duration: Date.now() - start,
       })
     );
-    return NextResponse.json(
-      {
-        error: messages.providerIdentifyFailed(
-          provider.displayName,
-          provider.identifyHint
-        ),
-        code: "provider_identify_failed",
-      },
-      { status: 502 }
-    );
+    return {
+      refusal: NextResponse.json(
+        {
+          error: messages.providerIdentifyFailed(provider.displayName),
+          code: "provider_identify_failed",
+        },
+        { status: 502 }
+      ),
+    };
   }
 
-  if (!identity) return null;
+  if (!identity) return { refusal: null, verifiedName: null };
 
   // One statement: insert the binding, or read the one that exists. A
   // matching account refreshes the verified name.
@@ -67,7 +76,10 @@ export async function checkProviderBinding(
         updatedAt: sql`CASE WHEN ${matches} THEN now() ELSE ${firmProviderBindings.updatedAt} END`,
       },
     })
-    .returning({ accountRef: firmProviderBindings.accountRef });
+    .returning({
+      accountRef: firmProviderBindings.accountRef,
+      verifiedName: firmProviderBindings.verifiedName,
+    });
 
   if (bound.accountRef !== identity.accountRef) {
     console.error(
@@ -79,34 +91,26 @@ export async function checkProviderBinding(
         duration: Date.now() - start,
       })
     );
-    return NextResponse.json(
-      {
-        error: messages.providerAccountMismatch(provider.displayName),
-        code: "provider_account_mismatch",
-      },
-      { status: 403 }
-    );
+    return {
+      refusal: NextResponse.json(
+        {
+          error: messages.providerAccountMismatch(provider.displayName),
+          code: "provider_account_mismatch",
+        },
+        { status: 403 }
+      ),
+    };
   }
 
-  return null;
+  return { refusal: null, verifiedName: bound.verifiedName };
 }
 
 // The line a client's link page shows under the firm's name, or null.
-export async function verifiedLineFor(
-  firmId: string,
-  providerName: string
-): Promise<string | null> {
+export function verifiedLineFor(
+  providerName: string,
+  verifiedName: string | null
+): string | null {
   const provider = getProvider(providerName);
-  if (!provider) return null;
-  const [binding] = await db
-    .select({ verifiedName: firmProviderBindings.verifiedName })
-    .from(firmProviderBindings)
-    .where(
-      and(
-        eq(firmProviderBindings.firmId, firmId),
-        eq(firmProviderBindings.provider, providerName)
-      )
-    );
-  if (!binding?.verifiedName) return null;
-  return messages.verifiedLine(provider.displayName, binding.verifiedName);
+  if (!provider || !verifiedName) return null;
+  return messages.verifiedLine(provider.displayName, verifiedName);
 }

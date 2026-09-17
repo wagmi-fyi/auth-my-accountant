@@ -123,7 +123,10 @@ export default async function BundleAuthPage({
     );
   }
 
-  const verifiedLine = await verifiedLineFor(bundle.firmId, bundle.provider);
+  const verifiedLine = verifiedLineFor(
+    bundle.provider,
+    bundle.providerVerifiedName
+  );
 
   // Pending or Active — show consent + auth flow
   const sessionData = sessions.map((s, index) => ({

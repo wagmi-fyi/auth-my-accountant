@@ -32,15 +32,14 @@ export interface Provider {
   name: string;
   // The provider's name as a person reads it.
   displayName: string;
-  // One sentence added to the refusal when identifyAccount fails.
-  identifyHint?: string;
   createSession(
     config: ProviderSessionRequest,
     credentials: Record<string, unknown>
   ): Promise<ProviderSessionResult>;
   validateResults(raw: unknown): ProviderResultItem[];
   // Which account the credentials belong to. Null when the provider cannot
-  // say, and then the firm is not bound to an account.
+  // say, for example a key without the permission to look. The link is then
+  // made, and no binding is written or checked.
   identifyAccount(
     credentials: Record<string, unknown>
   ): Promise<ProviderAccountIdentity | null>;

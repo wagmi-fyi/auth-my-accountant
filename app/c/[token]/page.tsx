@@ -112,7 +112,10 @@ export default async function AuthPage({
     );
   }
 
-  const verifiedLine = await verifiedLineFor(channel.firmId, channel.provider);
+  const verifiedLine = verifiedLineFor(
+    channel.provider,
+    channel.providerVerifiedName
+  );
 
   // Pending — show consent + auth flow
   return (

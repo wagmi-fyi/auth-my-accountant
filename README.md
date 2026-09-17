@@ -44,7 +44,7 @@ npm run dev
 
 ### POST /api/signup
 
-Sign up a firm. Needs no key. Answers with the firm's key, once.
+Signs a firm up. It needs no key, and it answers with the firm's key once.
 
 WAGMI's hosted copy at `auth-my-accountant.vercel.app` is open for sign-up.
 Call this route with your firm's name, or run the bookkeeping skill's `signup`
@@ -67,7 +67,7 @@ curl -X POST http://localhost:3000/api/signup \
 
 > The `api_key` is returned only once, and the service keeps only its hash. A lost key cannot be recovered. Sign up again.
 
-A refusal carries `error`, the words for a person, and `code`:
+A refusal carries two fields: `error`, which holds words for a person, and `code`:
 
 | Status | `code` | Meaning |
 | --- | --- | --- |
@@ -104,7 +104,8 @@ sets the account.
 
 ### GET /api/firms
 
-The daily digest. Requires admin API key.
+Lists the firms made since a given time, with the day's sign-up figures.
+Requires the admin API key.
 
 - `since`: a time. Firms made since then are listed. Default 24 hours ago.
 - `day`: a UTC date, `YYYY-MM-DD`. The sign-up figures are for that day. Default today.
@@ -156,18 +157,23 @@ curl -X PATCH http://localhost:3000/api/firms/{id} \
 
 ### Provider account binding
 
-A firm's first channel or bundle with a provider records which provider account
-the credentials belong to. A later request with credentials for another account
-gets 403 with `code` `provider_account_mismatch`. A provider that cannot say
-which account its credentials belong to binds nothing.
+When a firm's credentials let the provider say which account they belong to,
+the firm's first channel or bundle records that account. A later request with
+credentials for another account gets 403 with `code`
+`provider_account_mismatch`. When the provider cannot say which account the
+credentials belong to, the service makes the link and leaves any binding as it
+is.
 
-When the provider reports a verified name for the account holder, the client's
-link page shows it under the firm's name. For Stripe that is the account's
-registered company name, from a live key only.
+When the provider reports a verified name for the account holder, the page of a
+link made with the bound account's credentials shows it under the firm's name.
+For Stripe that is the account's registered company name, from a live key only.
 
-A Stripe restricted key needs **Accounts: Read** for this check, beside
-**Financial Connections: Read and Write** and **Customers: Write**. A check that
-fails gets 502 with `code` `provider_identify_failed`.
+For Stripe, **Accounts: Read** is the permission that lets the service see the
+account. It is recommended for a restricted key, beside the required
+**Financial Connections: Read and Write** and **Customers: Write**. With it, the
+firm is tied to its own Stripe account, and its clients see the company name
+Stripe verified. Links work without it. A check that fails for any other reason
+gets 502 with `code` `provider_identify_failed`.
 
 ### POST /api/channels
 
@@ -382,8 +388,7 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
    - `displayName`: the provider's name as a person reads it
    - `createSession(config, credentials)` — create provider session with transient credentials
    - `validateResults(raw)` — normalize provider response into `ProviderResultItem[]`
-   - `identifyAccount(credentials)`: the account the credentials belong to, as `{ accountRef, verifiedName? }`, or `null` when the provider cannot say
-   - `identifyHint`, optional: one sentence added when `identifyAccount` fails, such as the permission a key needs
+   - `identifyAccount(credentials)`: the account the credentials belong to, as `{ accountRef, verifiedName? }`, or `null` when the provider cannot say, such as a key without permission to look
 
 2. Register in `lib/providers/index.ts`:
    ```typescript

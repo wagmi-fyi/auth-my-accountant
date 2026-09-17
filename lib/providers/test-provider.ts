@@ -9,7 +9,8 @@ import type {
 
 // A provider for local tests. It calls nothing. The credentials steer it:
 //   secret_key       the account reference; "unknown" makes identifyAccount
-//                    answer null, "fail" makes it throw
+//                    answer null, as a key without permission does; "fail"
+//                    makes it throw
 //   publishable_key  the verified name; "none" means no name
 // It is registered only outside production builds, and only when
 // AMA_ENABLE_TEST_PROVIDER=1.
