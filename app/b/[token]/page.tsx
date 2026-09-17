@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import Image from "next/image";
 import { db } from "@/lib/db";
+import { verifiedLineFor } from "@/lib/binding";
 import { bundles } from "@/lib/schema";
 import BundleAuthFlow from "./BundleAuthFlow";
 
@@ -122,6 +123,8 @@ export default async function BundleAuthPage({
     );
   }
 
+  const verifiedLine = await verifiedLineFor(bundle.firmId, bundle.provider);
+
   // Pending or Active — show consent + auth flow
   const sessionData = sessions.map((s, index) => ({
     index,
@@ -144,6 +147,9 @@ export default async function BundleAuthPage({
         <h2 className="text-lg font-semibold text-gray-900">
           {consent.firm_name}
         </h2>
+        {verifiedLine && (
+          <p className="text-xs text-gray-500 mt-1">{verifiedLine}</p>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">

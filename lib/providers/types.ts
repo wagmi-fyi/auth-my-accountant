@@ -21,14 +21,27 @@ export interface ProviderResultItem {
   account_metadata: Record<string, unknown>;
 }
 
+export interface ProviderAccountIdentity {
+  // Stable reference to the provider account the credentials belong to.
+  accountRef: string;
+  // The account holder's name as the provider verified it, when it has one.
+  verifiedName?: string;
+}
+
 export interface Provider {
   name: string;
+  // The provider's name as a person reads it.
+  displayName: string;
+  // One sentence added to the refusal when identifyAccount fails.
+  identifyHint?: string;
   createSession(
     config: ProviderSessionRequest,
     credentials: Record<string, unknown>
   ): Promise<ProviderSessionResult>;
   validateResults(raw: unknown): ProviderResultItem[];
-  verifyAccount(
+  // Which account the credentials belong to. Null when the provider cannot
+  // say, and then the firm is not bound to an account.
+  identifyAccount(
     credentials: Record<string, unknown>
-  ): Promise<string>;
+  ): Promise<ProviderAccountIdentity | null>;
 }

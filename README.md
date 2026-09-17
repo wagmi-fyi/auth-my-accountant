@@ -37,16 +37,21 @@ npm run dev
 | `DATABASE_URL` | Neon Postgres connection string |
 | `ADMIN_API_KEY` | Platform admin key for firm provisioning |
 | `NEXT_PUBLIC_APP_URL` | Base URL for channel links (e.g., `https://authmyaccountant.com`) |
+| `SIGNUP_PER_ADDRESS_HOURLY` | Optional. Sign-ups allowed from one caller address per hour. Default 3. |
+| `SIGNUP_DAILY_CAP` | Optional. New firms allowed by sign-up per UTC day. Default 20. Set it to 0 to close sign-up. |
 
 ## API Reference
 
-### POST /api/firms
+### POST /api/signup
 
-Create a new firm. Requires admin API key.
+Sign up a firm. Needs no key. Answers with the firm's key, once.
+
+WAGMI's hosted copy at `auth-my-accountant.vercel.app` is open for sign-up.
+Call this route with your firm's name, or run the bookkeeping skill's `signup`
+command, which saves the key for you.
 
 ```bash
-curl -X POST http://localhost:3000/api/firms \
-  -H "Authorization: Bearer {ADMIN_API_KEY}" \
+curl -X POST http://localhost:3000/api/signup \
   -H "Content-Type: application/json" \
   -d '{"name": "Acme Accounting"}'
 ```
@@ -60,7 +65,109 @@ curl -X POST http://localhost:3000/api/firms \
 }
 ```
 
+> The `api_key` is returned only once, and the service keeps only its hash. A lost key cannot be recovered. Sign up again.
+
+A refusal carries `error`, the words for a person, and `code`:
+
+| Status | `code` | Meaning |
+| --- | --- | --- |
+| 429 | `rate_limited` | Too many sign-ups from one address this hour. `Retry-After` says when to try again. |
+| 429 | `daily_cap_reached` | The day's sign-ups are used up. Sign-up opens again at midnight UTC. |
+
+The first refusal of a day writes a log line with `"alert": "signup_daily_cap_reached"`.
+
+### POST /api/firms
+
+Create a new firm. Requires admin API key.
+
+```bash
+curl -X POST http://localhost:3000/api/firms \
+  -H "Authorization: Bearer {ADMIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Acme Accounting"}'
+```
+
+Add `"bind": {"provider": "stripe_fc", "account_ref": "acct_..."}` to tie the
+firm to one provider account from the start. Without it, the firm's first link
+sets the account.
+
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "name": "Acme Accounting",
+  "api_key": "acp_..."
+}
+```
+
 > The `api_key` is returned only once. Store it securely.
+
+### GET /api/firms
+
+The daily digest. Requires admin API key.
+
+- `since`: a time. Firms made since then are listed. Default 24 hours ago.
+- `day`: a UTC date, `YYYY-MM-DD`. The sign-up figures are for that day. Default today.
+
+```bash
+curl "http://localhost:3000/api/firms?since=2026-09-16T00:00:00Z&day=2026-09-16" \
+  -H "Authorization: Bearer {ADMIN_API_KEY}"
+```
+
+**Response (200):**
+```json
+{
+  "since": "...",
+  "until": "...",
+  "firms": [
+    {
+      "id": "uuid",
+      "name": "Acme Accounting",
+      "status": "active",
+      "created_at": "...",
+      "bindings": [
+        { "provider": "stripe_fc", "account_ref": "acct_...", "verified_name": "Acme Accounting LLC" }
+      ]
+    }
+  ],
+  "signup_cap": {
+    "day": "2026-09-16",
+    "daily_cap": 20,
+    "signups": 4,
+    "cap_reached": false,
+    "refused_over_cap": 0
+  }
+}
+```
+
+### PATCH /api/firms/:id
+
+Suspend or reactivate a firm. Requires admin API key. A suspended firm's key
+fails from its next request.
+
+```bash
+curl -X PATCH http://localhost:3000/api/firms/{id} \
+  -H "Authorization: Bearer {ADMIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "suspended"}'
+```
+
+`status` is `suspended` or `active`. The answer is the firm's `id`, `name` and `status`.
+
+### Provider account binding
+
+A firm's first channel or bundle with a provider records which provider account
+the credentials belong to. A later request with credentials for another account
+gets 403 with `code` `provider_account_mismatch`. A provider that cannot say
+which account its credentials belong to binds nothing.
+
+When the provider reports a verified name for the account holder, the client's
+link page shows it under the firm's name. For Stripe that is the account's
+registered company name, from a live key only.
+
+A Stripe restricted key needs **Accounts: Read** for this check, beside
+**Financial Connections: Read and Write** and **Customers: Write**. A check that
+fails gets 502 with `code` `provider_identify_failed`.
 
 ### POST /api/channels
 
@@ -259,7 +366,10 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
 
 | Endpoint | Limit | Scope |
 | --- | --- | --- |
+| POST /api/signup | 3/hour, and 20/day in total | caller address; everyone |
 | POST /api/firms | 10/min | admin |
+| GET /api/firms | 30/min | admin |
+| PATCH /api/firms/:id | 10/min | admin |
 | POST /api/channels | 30/min | firm |
 | POST /api/bundles | 10/min | firm |
 | POST /api/channels/:id/results | 5/min | channel |
@@ -269,8 +379,11 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
 ## Adding a New Provider
 
 1. Create `lib/providers/{name}.ts` implementing the `Provider` interface:
+   - `displayName`: the provider's name as a person reads it
    - `createSession(config, credentials)` — create provider session with transient credentials
    - `validateResults(raw)` — normalize provider response into `ProviderResultItem[]`
+   - `identifyAccount(credentials)`: the account the credentials belong to, as `{ accountRef, verifiedName? }`, or `null` when the provider cannot say
+   - `identifyHint`, optional: one sentence added when `identifyAccount` fails, such as the permission a key needs
 
 2. Register in `lib/providers/index.ts`:
    ```typescript
@@ -279,9 +392,7 @@ Per-endpoint, enforced via DB-backed windows (HTTP 429 with `Retry-After` on bre
    my_provider: myProvider,
    ```
 
-3. Add provider name to `createChannelSchema` enum in `lib/validation.ts`
-
-4. Add provider-specific client component handling in `AuthFlow.tsx`
+3. Add provider-specific client component handling in `AuthFlow.tsx`
 
 ## Deployment
 

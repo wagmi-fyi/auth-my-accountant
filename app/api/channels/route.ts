@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { validateFirmApiKey, generateChannelToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { channels, firms } from "@/lib/schema";
+import { channels } from "@/lib/schema";
 import { createChannelSchema } from "@/lib/validation";
 import { getProvider } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { eq } from "drizzle-orm";
+import { checkProviderBinding } from "@/lib/binding";
 
 export async function POST(request: Request) {
   const start = Date.now();
@@ -58,37 +58,14 @@ export async function POST(request: Request) {
     );
   }
 
-  // Stripe account pinning: verify credentials match registered account
-  const [firmRecord] = await db
-    .select({ stripeAccountId: firms.stripeAccountId })
-    .from(firms)
-    .where(eq(firms.id, firm.id));
-
-  if (firmRecord?.stripeAccountId) {
-    try {
-      const accountId = await provider.verifyAccount(data.credentials);
-      if (accountId !== firmRecord.stripeAccountId) {
-        return NextResponse.json(
-          { error: "Stripe account does not match registered account" },
-          { status: 403 }
-        );
-      }
-    } catch {
-      console.error(
-        JSON.stringify({
-          endpoint: "POST /api/channels",
-          firm_id: firm.id,
-          error: "Account verification failed",
-          status: 403,
-          duration: Date.now() - start,
-        })
-      );
-      return NextResponse.json(
-        { error: "Failed to verify Stripe account ownership" },
-        { status: 403 }
-      );
-    }
-  }
+  const refusal = await checkProviderBinding(
+    firm.id,
+    provider,
+    data.credentials,
+    "POST /api/channels",
+    start
+  );
+  if (refusal) return refusal;
 
   let sessionResult;
   try {

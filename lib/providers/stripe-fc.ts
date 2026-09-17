@@ -4,6 +4,7 @@ import type {
   ProviderSessionRequest,
   ProviderSessionResult,
   ProviderResultItem,
+  ProviderAccountIdentity,
 } from "./types";
 
 interface StripeAccount {
@@ -18,6 +19,9 @@ interface StripeAccount {
 
 export const stripeFcProvider: Provider = {
   name: "stripe_fc",
+  displayName: "Stripe",
+  identifyHint:
+    "A restricted key needs Accounts: Read, beside Financial Connections: Read and Write and Customers: Write.",
 
   async createSession(
     config: ProviderSessionRequest,
@@ -68,13 +72,20 @@ export const stripeFcProvider: Provider = {
     };
   },
 
-  async verifyAccount(
+  async identifyAccount(
     credentials: Record<string, unknown>
-  ): Promise<string> {
+  ): Promise<ProviderAccountIdentity> {
     const secretKey = credentials.secret_key as string;
     const stripe = new Stripe(secretKey);
     const account = await stripe.accounts.retrieve();
-    return account.id;
+    // A test account's name is whatever was typed in, so only a live key
+    // reports a verified name.
+    const live = /^(sk|rk)_live_/.test(secretKey);
+    const companyName = account.company?.name?.trim();
+    return {
+      accountRef: account.id,
+      verifiedName: live && companyName ? companyName : undefined,
+    };
   },
 
   validateResults(raw: unknown): ProviderResultItem[] {

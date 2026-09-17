@@ -12,10 +12,36 @@ export const firms = pgTable("firms", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   apiKeyHash: text("api_key_hash").notNull(),
+  // No code reads this column. Its values were copied into
+  // firm_provider_bindings, and it stays until no deployment that reads it
+  // could be rolled back to.
   stripeAccountId: text("stripe_account_id"),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// The provider account a firm's links go through. The first link a firm makes
+// with a provider sets it; a later link with another account is refused.
+export const firmProviderBindings = pgTable(
+  "firm_provider_bindings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    firmId: uuid("firm_id")
+      .references(() => firms.id)
+      .notNull(),
+    provider: text("provider").notNull(),
+    accountRef: text("account_ref").notNull(),
+    verifiedName: text("verified_name"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("firm_provider_bindings_firm_provider").on(
+      table.firmId,
+      table.provider
+    ),
+  ]
+);
 
 export const channels = pgTable(
   "channels",
