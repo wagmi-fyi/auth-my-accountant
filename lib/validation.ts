@@ -1,12 +1,38 @@
 import { z } from "zod";
+import { getProvider } from "./providers";
 
-export const createFirmSchema = z.object({
-  name: z.string().min(1).max(200),
-  stripe_account_id: z.string().optional(),
+const providerName = z
+  .string()
+  .refine((name) => getProvider(name) !== undefined, {
+    message: "Unknown provider",
+  });
+
+const firmName = z.string().trim().min(1).max(200);
+
+export const createFirmSchema = z
+  .object({
+    name: firmName,
+    bind: z
+      .object({
+        provider: providerName,
+        account_ref: z.string().min(1).max(200),
+      })
+      .optional(),
+  })
+  .strict();
+
+export const signupSchema = z.object({
+  name: firmName,
 });
 
+export const updateFirmSchema = z
+  .object({
+    status: z.enum(["active", "suspended"]),
+  })
+  .strict();
+
 export const createChannelSchema = z.object({
-  provider: z.enum(["stripe_fc"]),
+  provider: providerName,
   provider_config: z.object({
     permissions: z
       .array(
@@ -30,7 +56,7 @@ export const createChannelSchema = z.object({
 });
 
 export const createBundleSchema = z.object({
-  provider: z.enum(["stripe_fc"]),
+  provider: providerName,
   provider_config: z.object({
     permissions: z
       .array(

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import Image from "next/image";
 import { db } from "@/lib/db";
+import { verifiedLineFor } from "@/lib/binding";
 import { channels, channelResults } from "@/lib/schema";
 import AuthFlow from "./AuthFlow";
 
@@ -111,6 +112,11 @@ export default async function AuthPage({
     );
   }
 
+  const verifiedLine = verifiedLineFor(
+    channel.provider,
+    channel.providerVerifiedName
+  );
+
   // Pending — show consent + auth flow
   return (
     <PageShell>
@@ -126,6 +132,9 @@ export default async function AuthPage({
         <h2 className="text-lg font-semibold text-gray-900">
           {consent.firm_name}
         </h2>
+        {verifiedLine && (
+          <p className="text-xs text-gray-500 mt-1">{verifiedLine}</p>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-6">

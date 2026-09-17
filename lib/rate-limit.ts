@@ -5,6 +5,8 @@ import { rateLimits } from "./schema";
 interface RateLimitResult {
   allowed: boolean;
   retryAfter?: number;
+  // Requests counted in this window, this one included.
+  count: number;
 }
 
 export async function checkRateLimit(
@@ -16,7 +18,7 @@ export async function checkRateLimit(
   const now = new Date();
   // Truncate to window boundary
   const windowMs = windowSeconds * 1000;
-  const windowStart = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
+  const windowStart = windowStartFor(now, windowSeconds);
 
   // Atomic upsert: insert with count=1, or increment on conflict
   const [result] = await db
@@ -38,8 +40,18 @@ export async function checkRateLimit(
   if (result.requestCount > limit) {
     const windowEnd = new Date(windowStart.getTime() + windowMs);
     const retryAfter = Math.ceil((windowEnd.getTime() - now.getTime()) / 1000);
-    return { allowed: false, retryAfter: Math.max(retryAfter, 1) };
+    return {
+      allowed: false,
+      retryAfter: Math.max(retryAfter, 1),
+      count: result.requestCount,
+    };
   }
 
-  return { allowed: true };
+  return { allowed: true, count: result.requestCount };
+}
+
+// The start of the window `windowSeconds` long that holds `at`.
+export function windowStartFor(at: Date, windowSeconds: number): Date {
+  const windowMs = windowSeconds * 1000;
+  return new Date(Math.floor(at.getTime() / windowMs) * windowMs);
 }
